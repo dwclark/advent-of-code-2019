@@ -1,5 +1,11 @@
 #!/usr/bin/awk -f
 
+# NOTE: I believe the last exammple in part 2 (Here's a larger example) is incorrect.
+# It correctly outputs the right numbers for the given inputs. However, the output
+# is not following by a 99 instruction and so the error detection code signals an
+# error and then returns. At that point the correct value is in the output.
+# Fortunately, part 2 does return the correct code and exits correctly.
+
 BEGIN { FS = ","; delete data; delete copy; }
 
 function makeCopy() { for(i in data) copy[i] = data[i] }
@@ -29,7 +35,6 @@ function decode_ins(code, ptr, ins, _str, _tmp) {
         ins["p2"] = code[ptr+2]
         ins["v2"] = (ins["m2"] == 1) ? ins["p2"] : code[ins["p2"]]
         ins["p3"] = code[ptr+3]
-        ins["v3"] = (ins["m3"] == 1) ? ins["p3"] : code[ins["p3"]]
     }
 }
 
@@ -44,7 +49,7 @@ function memory_cells(code, start, end, _str) {
 
 function ins_to_string(ins) {
     return "[ m1: " ins["m1"] ", m2: " ins["m2"] ", m3: " ins["m3"] " op: " ins["op"] \
-        " p1: " ins["p1"] " p2: " ins["p2"] " p3: " ins["p3"] " v1: " ins["v1"] " v2: " ins["v2"] " v3: " ins["v3"] "]" 
+        " p1: " ins["p1"] " p2: " ins["p2"] " p3: " ins["p3"] " v1: " ins["v1"] " v2: " ins["v2"] "]" 
 }
 
 function runProgram(input, _ptr, _ins, _output, _tmp1, _tmp2) {
@@ -52,8 +57,6 @@ function runProgram(input, _ptr, _ins, _output, _tmp1, _tmp2) {
     _ptr = 0
     while(1) {
         decode_ins(copy, _ptr, _ins)
-        print memory_cells(copy, 0, 46)
-        print "ptr: " _ptr " " ins_to_string(_ins)
         if(_ins["op"] == 99) break
         else if(_ins["op"] == 1) {
             copy[_ins["p3"]] = _ins["v1"] + _ins["v2"]
@@ -105,8 +108,6 @@ function runProgram(input, _ptr, _ins, _output, _tmp1, _tmp2) {
             print "bad op: " _ins["op"]
             return _output
         }
-
-        print ""
     }
 
     return _output
