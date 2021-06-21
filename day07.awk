@@ -4,14 +4,16 @@
 
 BEGIN {
     FS= ",";
+
+    #constant data
     AMP_IDS["a"] = "a"; AMP_IDS["b"] = "b"; AMP_IDS["c"] = "c"; AMP_IDS["d"] = "d"; AMP_IDS["e"] = "e";
     P1_PHASES[0] = 0; P1_PHASES[1] = 1; P1_PHASES[2] = 2; P1_PHASES[3] = 3; P1_PHASES[4] = 4;
     P2_PHASES[0] = 5; P2_PHASES[1] = 6; P2_PHASES[2] = 7; P2_PHASES[3] = 8; P2_PHASES[4] = 9;
-    delete P1_PERMUTATIONS;
-    delete P2_PERMUTATIONS;
-    delete DATA;
-    delete amplifiers;
-    delete ioBus;
+
+    #"declare" arrays used for data storage
+    delete P1_PERMUTATIONS; delete P2_PERMUTATIONS; delete DATA; delete amplifiers; delete ioBus;
+
+    #initialize all permutations
     permutation(P1_PHASES, 0, 4, P1_PERMUTATIONS);
     permutation(P2_PHASES, 0, 4, P2_PERMUTATIONS);
 }
