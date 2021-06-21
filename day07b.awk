@@ -4,25 +4,77 @@
 
 BEGIN {
     FS= ",";
-    TMP_PHASES[0] = 5; TMP_PHASES[1] = 6; TMP_PHASES[2] = 7; TMP_PHASES[3] = 8; TMP_PHASES[4] = 9;
-    delete PERMUTATIONS; delete DATA; delete amplifiers;
-    permutation(TMP_PHASES, 0, 4, PERMUTATIONS);
+    AMP_IDS["a"] = "a"; AMP_IDS["b"] = "b"; AMP_IDS["c"] = "c"; AMP_IDS["d"] = "d"; AMP_IDS["e"] = "e";
+    P1_PHASES[0] = 0; P1_PHASES[1] = 1; P1_PHASES[2] = 2; P1_PHASES[3] = 3; P1_PHASES[4] = 4;
+    P2_PHASES[0] = 5; P2_PHASES[1] = 6; P2_PHASES[2] = 7; P2_PHASES[3] = 8; P2_PHASES[4] = 9;
+    delete P1_PERMUTATIONS;
+    delete P2_PERMUTATIONS;
+    delete DATA;
+    delete amplifiers;
+    delete ioBus;
+    permutation(P1_PHASES, 0, 4, P1_PERMUTATIONS);
+    permutation(P2_PHASES, 0, 4, P2_PERMUTATIONS);
 }
 
-function resetAmplifiers(phases, _ampIndex, _amp, _amps, _dataIndex) {
-    split("abcde", _amps, "")
-    for(_ampIndex = 1; _ampIndex <= length(_amps); ++_ampIndex) {
-        _amp = _amps[_ampIndex]
-        amplifiers[_amp]["output"][0] = phases[_ampIndex];
-        amplifiers[_amp]["ouput_addr"] = 0
-        amplifiers[_amp]["prev"] = (_amp == "a") ? "e" : _amps[_ampIndex]
-        for(_dataIndex in DATA) {
-            amplifiers[_amp][_dataIndex] = DATA[_dataIndex]
+function resetIoBus(phases) {
+    delete ioBus
+    ioBus["e", "out"][0] = phases[0]
+    ioBus["e", "out"][1] = 0
+    ioBus["e", "read"] = 0
+    ioBus["e", "from"] = "d"
+    ioBus["a", "out"][0] = phases[1]
+    ioBus["a", "read"] = 0
+    ioBus["a", "from"] = "e"
+    ioBus["b", "out"][0] = phases[2]
+    ioBus["b", "read"] = 0
+    ioBus["b", "from"] = "a"
+    ioBus["c", "out"][0] = phases[3]
+    ioBus["c", "read"] = 0
+    ioBus["c", "from"] = "b"
+    ioBus["d", "out"][0] = phases[4]
+    ioBus["d", "read"] = 0
+    ioBus["d", "from"] = "c"
+}
+
+function output_to_string(id, _str, _i) {
+    _str = id ": (" ioBus[id, "read"] ") [ "
+    for(_i = 0; _i < length(ioBus[id, "out"]); ++_i)
+        _str = _str ioBus[id, "out"][_i] " "
+    return _str "]"
+}
+
+function io_bus_to_string(_str) {
+    return (output_to_string("a") "\n" output_to_string("b") "\n" output_to_string("c") "\n" \
+            output_to_string("d") "\n" output_to_string("e"))
+}
+
+function toBus(source, datum, _at) {
+    _at = length(ioBus[source, "out"]);
+    ioBus[source, "out"][_at] = datum;
+}
+
+function fromBus(requester, _from,  _at, _ret) {
+    _from = ioBus[requester, "from"];
+    _at = ioBus[_from, "read"];
+    if(_at >= length(ioBus[_from, "out"])) {
+        print "trying to read beyond limit from: " _from " requester: " requester;
+        exit(0);
+    }
+    
+    _ret = ioBus[_from, "out"][_at];
+    ++ioBus[_from, "read"];
+    return _ret;
+}
+
+function resetAmplifiers(_id, _i) {
+    delete amplifiers
+    for(_id in AMP_IDS) {
+        amplifiers[_id]["id"] = _id
+        amplifiers[_id]["ptr"] = 0
+        for(_i in DATA) {
+            amplifiers[_id][_i] = DATA[_i]
         }
     }
-
-    amplifiers["e"]["output"][1] = 0
-    amplifiers["e"]["output_addr"]++
 }
 
 function decode_ins(code, ptr, ins, _str, _tmp) {
@@ -46,92 +98,110 @@ function decode_ins(code, ptr, ins, _str, _tmp) {
     }
 }
 
-function runProgram(amp, _ptr, _ins, _output, _tmp1, _tmp2) {
-    _ptr = 0
+function runProgram(amp, _ptr, _ins) {
     while(1) {
-        decode_ins(amp, _ptr, _ins)
-        if(_ins["op"] == 99) break
+        decode_ins(amp, amp["ptr"], _ins)
+        if(_ins["op"] == 99) {
+            return 99
+        }
         else if(_ins["op"] == 1) {
             amp[_ins["p3"]] = _ins["v1"] + _ins["v2"]
-            _ptr += 4
+            amp["ptr"] += 4
         }
         else if(_ins["op"] == 2) {
             amp[_ins["p3"]] = _ins["v1"] * _ins["v2"]
-            _ptr += 4
+            amp["ptr"] += 4
         }
         else if(_ins["op"] == 3) {
-            amp[_ins["p1"]] = #TODO put amp input here
-            _ptr += 2
+            amp[_ins["p1"]] = fromBus(amp["id"])
+            amp["ptr"] += 2
         }
         else if(_ins["op"] == 4) {
-            _output = _ins["v1"]
-            _ptr += 2
-            if(_output != 0 && amp[_ptr] != 99) {
-                print "error"
-                return _output
-            }
+            toBus(amp["id"], _ins["v1"])
+            amp["ptr"] += 2
+            return 4
         }
         else if(_ins["op"] == 5) {
             if(_ins["v1"] != 0)
-                _ptr = _ins["v2"]
+                amp["ptr"] = _ins["v2"]
             else
-                _ptr += 3
+                amp["ptr"] += 3
         }
         else if(_ins["op"] == 6) {
             if(_ins["v1"] == 0)
-                _ptr = _ins["v2"]
+                amp["ptr"] = _ins["v2"]
             else
-                _ptr += 3
+                amp["ptr"] += 3
         }
         else if(_ins["op"] == 7) {
             if (_ins["v1"] < _ins["v2"])
                 amp[_ins["p3"]] = 1
             else
                 amp[_ins["p3"]] = 0
-            _ptr += 4
+            amp["ptr"] += 4
         }
         else if(_ins["op"] == 8) {
             if(_ins["v1"] == _ins["v2"])
                 amp[_ins["p3"]] = 1
             else
                 amp[_ins["p3"]] = 0
-            _ptr += 4
+            amp["ptr"] += 4
         }
         else {
             print "bad op: " _ins["op"]
-            return _output
+            return
         }
     }
-
-    return _output
 }
 
-function runPhase(phase, _input) {
-    _input[0] = phase[0] #phase
-    _input[1] = 0
-    _input[1] = runProgram(_input)
-    _input[0] = phase[1] #phase
-    _input[1] = runProgram(_input)
-    _input[0] = phase[2] #phase
-    _input[1] = runProgram(_input)
-    _input[0] = phase[3] #phase
-    _input[1] = runProgram(_input)
-    _input[0] = phase[4] #phase
-    return runProgram(_input)
+function part1_cycle(phase, _input) {
+    resetAmplifiers()
+    resetIoBus(phase)
+    runProgram(amplifiers["a"])
+    runProgram(amplifiers["b"])
+    runProgram(amplifiers["c"])
+    runProgram(amplifiers["d"])
+    runProgram(amplifiers["e"])
+    return fromBus("a");
 }
 
-function maxThrusterOutput(_max, _tmp) {
+function part1(_max, _tmp, _i) {
     _max = -1
-    for(phase in phasePermutations) {
-        _tmp = runPhase(phasePermutations[phase])
+    for(_i in P1_PERMUTATIONS) {
+        _tmp = part1_cycle(P1_PERMUTATIONS[_i])
         _max = (_max < _tmp) ? _tmp : _max
     }
-
+    
     return _max
 }
 
-{ for(i = 1; i <= NF; ++i) data[i-1] = $(i) }
+function part2_cycle(phase, _ret) {
+    resetAmplifiers()
+    resetIoBus(phase)
+    _ret = -1
+    while(_ret != 99) {
+        runProgram(amplifiers["a"])
+        runProgram(amplifiers["b"])
+        runProgram(amplifiers["c"])
+        runProgram(amplifiers["d"])
+        _ret = runProgram(amplifiers["e"])
+    }
+    
+    return fromBus("a")
+}
+
+function part2(_max, _tmp, _i) {
+    _max = -1
+    for(_i in P2_PERMUTATIONS) {
+        _tmp = part2_cycle(P2_PERMUTATIONS[_i])
+        _max = (_max < _tmp) ? _tmp : _max
+    }
+    
+    return _max
+}
+
+{ for(i = 1; i <= NF; ++i) DATA[i-1] = $(i) }
 
 END {
-    resetAmplifiers(PERMUTATIONS[0])
+    print "1: " part1() "2: " part2()
 }
