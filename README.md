@@ -16,7 +16,7 @@ In a word: INTCODE. So many aspects of trying to code the INTCODE computer are s
 
 * Automatic type conversion is great for simple scripts that fit on your screen. After that, it's really nice for the compiler/interpreter to give some information that you are trying to do something wrong the data. I had a few hard to diagnose bugs because I thought something was a string when it was really a number (and vice-versa)
 * It's hard to use Awk's arrays correctly. Specifically, it's really easy to do something wrong with the array, have Awk think you are trying to use it as a scalar, and then get the dreaded `Attempt to use array in a scalar context` error.
-* You can't assign arrays to anything other than keys in an array. If `b` is an array, then this: `a = b` is illegal no matter what.
+* You can't assign arrays to anything other than keys in an array. If `b` is an array, then this: `x = b` is illegal no matter what x is.
 * You can't allocate anything, no `malloc/new` for you! For small scripts this is great, you shouldn't be worrying about allocation anyway. In fact, I think this one issue may be the best guidance for when you should use Awk and when you should avoid it:
 
 **If you have a problem and you can name everything you work with in the script (i.e. you can give everything you want to use a variable name), Awk is probably a safe choice. If not, avoid Awk. I mean everything. If you think to yourself, "I'll need a couple of those, but I want to treat them uniformly", then you can't name everything and you should avoid Awk**
