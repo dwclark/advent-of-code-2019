@@ -1,6 +1,10 @@
 import groovy.transform.Field;
 import java.util.concurrent.*;
 
+//extra tests
+Intcode.Instruction.populateModes(1002) == [ Intcode.Mode.POSITION, Intcode.Mode.IMMEDIATE, Intcode.Mode.POSITION ]
+Intcode.Instruction.populateModes(1001) == [ Intcode.Mode.POSITION, Intcode.Mode.IMMEDIATE, Intcode.Mode.POSITION ]
+Intcode.Instruction.populateModes(10201) == [ Intcode.Mode.RELATIVE, Intcode.Mode.POSITION, Intcode.Mode.IMMEDIATE ]
 //DAY 2 tests
 assert 3500 == Intcode.from("1,9,10,3,2,3,11,0,99,30,40,50").call().load(0)
 assert 2 == Intcode.from("1,0,0,0,99").call().load(0)
@@ -132,3 +136,22 @@ assert 18216 == executePhase2(phase2AmpsInit("3,52,1001,52,-5,52,3,53,1,52,56,54
                                              "53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10"), [9,7,8,5,6])
 
 assert 4374895 == day7([5,6,7,8,9], phase2AmpsInit(new File("data/07")), executePhase2)
+
+assert (Intcode.from("109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99").call().bus.writes ==
+        [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99])
+
+assert [1219070632396864L] == Intcode.from("1102,34915192,34915192,7,4,7,99,0").call().bus.writes
+
+assert [1125899906842624L] == Intcode.from("104,1125899906842624,99").call().bus.writes
+
+assert [-1L] == Intcode.from("109,-1,4,1,99").call().bus.writes
+assert [1L] == Intcode.from("109,-1,104,1,99").call().bus.writes
+assert [109L] == Intcode.from("109,-1,204,1,99").call().bus.writes
+assert [204L] == Intcode.from("109,1,9,2,204,-6,99").call().bus.writes
+assert [204L] == Intcode.from("109,1,109,9,204,-6,99").call().bus.writes
+assert [204L] == Intcode.from("109,1,209,-1,204,-106,99").call().bus.writes
+assert [77L] == Intcode.from("109,1,3,3,204,2,99", new IoBus().write(77L)).call().bus.writes
+assert [107L] == Intcode.from("109,1,203,2,204,2,99", new IoBus().write(107L)).call().bus.writes
+
+
+println Intcode.from(new File("data/09"), new IoBus().write(1L)).call().bus.writes

@@ -4,37 +4,37 @@ public class IoBus {
 
     public static volatile boolean DEBUG = false
 
-    BlockingQueue<Integer> writeChannel;
-    BlockingQueue<Integer> readChannel;
+    BlockingQueue<Long> writeChannel;
+    BlockingQueue<Long> readChannel;
 
     public IoBus() {
         writeChannel = (readChannel = new LinkedBlockingQueue<>())
     }
 
-    public IoBus(BlockingQueue<Integer> readChannel, BlockingQueue<Integer> writeChannel) {
+    public IoBus(BlockingQueue<Long> readChannel, BlockingQueue<Long> writeChannel) {
         this.readChannel = readChannel;
         this.writeChannel = writeChannel;
     }
 
-    public IoBus write(Integer val) {
+    public IoBus write(Long val) {
         if(DEBUG) println "Writing ${val}"
         writeChannel.put(val);
         return this
     }
 
-    public Integer lastWrite() {
+    public Long lastWrite() {
         def last = null
         writeChannel.each { i -> last = i }
         return last
     }
 
-    public Integer read() {
+    public Long read() {
         def val = readChannel.take();
         if(DEBUG) println "Read ${val}"
         return val
     }
 
-    public IoBus seedRead(Integer... vals) {
+    public IoBus seedRead(Long... vals) {
         vals.each { readChannel.put(it) }
         return this
     }
@@ -43,5 +43,9 @@ public class IoBus {
         writeChannel.clear()
         readChannel.clear()
         return this
+    }
+
+    public List<Long> getWrites() {
+        writeChannel.inject([]) { ret, val -> ret << val }
     }
 }

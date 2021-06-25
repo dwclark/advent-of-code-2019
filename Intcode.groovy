@@ -1,92 +1,125 @@
+import groovy.transform.ToString
+
 class Intcode {
 
-    static final int POSITION = 0
-    static final int IMMEDIATE = 1
+    volatile boolean DEBUG = false
+    
+    enum Mode {
+        POSITION, IMMEDIATE, RELATIVE;
 
+        static Mode fromOrdinal(int ordinal) {
+            if(POSITION.ordinal() == ordinal) return POSITION;
+            else if(IMMEDIATE.ordinal() == ordinal) return IMMEDIATE;
+            else if(RELATIVE.ordinal() == ordinal) return RELATIVE;
+            else throw new IllegalArgumentException("${ordinal} is not a valid mode");
+        }
+    }
+
+    @ToString
     static class Instruction {
         Integer opcode;
-        private List<Integer> parameters;
-        private List<Integer> modes;
+        List<Long> parameters;
+        List<Mode> modes;
 
-        static List<Integer> populateModes(int val) {
+        static List<Mode> populateModes(int val) {
             int soFar = (int) (val / 100)
-            int mode1 = soFar % 10;
+            Mode mode1 = Mode.fromOrdinal(soFar % 10)
             soFar = (int) (soFar / 10)
-            int mode2 = soFar % 10;
-            int mode3 = (int) (soFar / 10)
+            Mode mode2 = Mode.fromOrdinal(soFar % 10)
+            Mode mode3 = Mode.fromOrdinal((int) (soFar / 10))
             return [ mode1, mode2, mode3 ]
         }
 
-        static Instruction from(Map<Integer,Integer> memory, Integer address) {
-            new Instruction(opcode: (int) (memory[address] % 100),
-                            parameters: ((address+1)..(address+3)).collect { memory.containsKey(it) ? memory[it] : 0 },
-                            modes: populateModes(memory[address]))
+        static Instruction from(Map<Integer,Long> memory, Integer address) {
+            new Instruction(opcode: (int) (memory.get(address, 0L) % 100),
+                            parameters: ((address+1)..(address+3)).collect { memory.get(it, 0L) },
+                            modes: populateModes((int) memory.get(address, 0L)))
         }
 
-        int parameter(int idx) { return parameters[idx-1] }
-        int mode(int idx) { return modes[idx-1] }
+        Long parameter(int idx) { return parameters[idx-1] }
+        Mode mode(int idx) { return modes[idx-1] }
     }
 
     private int ptr = 0;
-    private List<Integer> code;
-    private Map<Integer,Integer> memory = [:]
+    private int baseOffset = 0;
+    private List<Long> code;
+    private Map<Integer,Long> memory = [:]
     final IoBus bus;
 
-    public Intcode store(Integer addr, Integer value) {
-        memory[addr] = value
+    public Intcode store(Number addr, Long value) {
+        if(DEBUG) println "Storing ${value} at ${addr}"
+        memory[(int) addr] = value
         return this
     }
 
-    public Integer load(Integer addr) {
-        return memory[addr]
+    public Long load(Number addr) {
+        if(addr < 0) {
+            throw new IllegalArgumentException("trying to read from address ${addr}")
+        }
+        
+        return memory.get((int) addr, 0L);
     }
 
-    public Integer value(Instruction ins, Integer param) {
-        if(ins.mode(param) == POSITION) {
-            return memory[ins.parameter(param)]
-        }
-        else if(ins.mode(param) == IMMEDIATE) {
-            return ins.parameter(param)
+    public int pvalueWrite(Instruction ins, Integer pos) {
+        Mode m = ins.mode(pos)
+        if(m == Mode.POSITION || m == Mode.IMMEDIATE) {
+            return ins.parameter(pos)
         }
         else {
-            throw new IllegalStateException("bad mode")
+            return baseOffset + ins.parameter(pos);
+        }
+    }
+    
+    public Long pvalueRead(Instruction ins, Integer pos) {
+        Mode m = ins.mode(pos)
+        if(m == Mode.POSITION) {
+            if(DEBUG) println "Reading POSITION from address ${ins.parameter(pos)}"
+            return load(ins.parameter(pos))
+        }
+        else if(m == Mode.IMMEDIATE) {
+            if(DEBUG) println "Returning immediate ${ins.parameter(pos)}"
+            return ins.parameter(pos)
+        }
+        else if(m == Mode.RELATIVE) {
+            if(DEBUG) println "Reading RELATIVE from address ${baseOffset + ins.parameter(pos)}"
+            return load(baseOffset + ins.parameter(pos))
         }
     }
 
     private Map<Integer,Closure> ops = [
-        (1): { ins -> store(ins.parameter(3), value(ins, 1) + value(ins, 2)); return 4; },
-        (2): { ins -> store(ins.parameter(3), value(ins, 1) * value(ins, 2)); return 4; },
-        (3): { ins -> store(ins.parameter(1), bus.read()); return 2; },
-        (4): { ins -> bus.write(value(ins, 1)); return 2; },
+        (1): { ins -> store(pvalueWrite(ins, 3), pvalueRead(ins, 1) + pvalueRead(ins, 2)); return 4; },
+        (2): { ins -> store(pvalueWrite(ins, 3), pvalueRead(ins, 1) * pvalueRead(ins, 2)); return 4; },
+        (3): { ins -> store(pvalueWrite(ins, 1), bus.read()); return 2; },
+        (4): { ins -> bus.write(pvalueRead(ins, 1)); return 2; },
         (5): { ins ->
-            if(value(ins, 1) != 0) {
-                ptr = value(ins, 2)
+            if(pvalueRead(ins, 1) != 0) {
+                ptr = pvalueRead(ins, 2)
                 return 0
             }
             else return 3
         },
         (6): { ins ->
-            if(value(ins, 1) == 0) {
-                ptr = value(ins, 2)
+            if(pvalueRead(ins, 1) == 0) {
+                ptr = pvalueRead(ins, 2)
                 return 0
             }
             else return 3
         },
         (7): { ins ->
-            if(value(ins, 1) < value(ins, 2))
-                store(ins.parameter(3), 1)
+            if(pvalueRead(ins, 1) < pvalueRead(ins, 2))
+                store(pvalueWrite(ins, 3), 1)
             else
-                store(ins.parameter(3), 0)
+                store(pvalueWrite(ins, 3), 0)
             return 4
         },
         (8): { ins ->
-            if(value(ins, 1) == value(ins, 2))
-                store(ins.parameter(3), 1)
+            if(pvalueRead(ins, 1) == pvalueRead(ins, 2))
+                store(pvalueWrite(ins, 3), 1)
             else
-                store(ins.parameter(3), 0)
+                store(pvalueWrite(ins, 3), 0)
             return 4
         },
-            
+        (9): { ins -> baseOffset += pvalueRead(ins, 1); return 2; },
         (99): { ins -> return -1; }
     ]
 
@@ -94,14 +127,15 @@ class Intcode {
         code.eachWithIndex { ins, addr -> memory[addr] = ins }        
     }
     
-    private Intcode(final List<Integer> code, final IoBus bus) {
+    private Intcode(final List<Long> code, final IoBus bus) {
         this.code = code;
         this.bus = bus;
         code2Memory()
     }
 
     Intcode reset() {
-        ptr = 0;
+        ptr = 0
+        baseOffset = 0
         memory.clear()
         code2Memory()
         bus.reset()
@@ -109,7 +143,7 @@ class Intcode {
     }
 
     static Intcode from(String str, IoBus bus) {
-        new Intcode(str.split(",").collect { it.toInteger() }.asImmutable(), bus)
+        new Intcode(str.split(",").collect { it.toLong() }.asImmutable(), bus)
     }
     
     static Intcode from(String str) {
@@ -128,6 +162,7 @@ class Intcode {
         try {
             while(true) {
                 Instruction ins = Instruction.from(memory, ptr);
+                if(DEBUG) println ins
                 Integer by = ops[ins.opcode].call(ins);
                 if(by < 0) break;
                 else ptr += by;
