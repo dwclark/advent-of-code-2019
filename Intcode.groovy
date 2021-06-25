@@ -90,14 +90,22 @@ class Intcode {
         (99): { ins -> return -1; }
     ]
 
+    private void code2Memory() {
+        code.eachWithIndex { ins, addr -> memory[addr] = ins }        
+    }
+    
     private Intcode(final List<Integer> code, final IoBus bus) {
         this.code = code;
         this.bus = bus;
-        code.eachWithIndex { ins, addr -> memory[addr] = ins }
+        code2Memory()
     }
 
     Intcode reset() {
-        new Intcode(code, new IoBus());
+        ptr = 0;
+        memory.clear()
+        code2Memory()
+        bus.reset()
+        return this
     }
 
     static Intcode from(String str, IoBus bus) {

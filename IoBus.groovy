@@ -1,26 +1,47 @@
-public class IoBus {
-    
-    private int readPtr = 0;
-    private List<Integer> channel = []
+import java.util.concurrent.*
 
-    public boolean hasMore() {
-        return readPtr < channel.size()
+public class IoBus {
+
+    public static volatile boolean DEBUG = false
+
+    BlockingQueue<Integer> writeChannel;
+    BlockingQueue<Integer> readChannel;
+
+    public IoBus() {
+        writeChannel = (readChannel = new LinkedBlockingQueue<>())
     }
-    
+
+    public IoBus(BlockingQueue<Integer> readChannel, BlockingQueue<Integer> writeChannel) {
+        this.readChannel = readChannel;
+        this.writeChannel = writeChannel;
+    }
+
     public IoBus write(Integer val) {
-        channel << val
+        if(DEBUG) println "Writing ${val}"
+        writeChannel.put(val);
         return this
     }
 
+    public Integer lastWrite() {
+        def last = null
+        writeChannel.each { i -> last = i }
+        return last
+    }
+
     public Integer read() {
-       channel[readPtr++]
+        def val = readChannel.take();
+        if(DEBUG) println "Read ${val}"
+        return val
     }
 
-    public Integer last() {
-        channel[-1]
+    public IoBus seedRead(Integer... vals) {
+        vals.each { readChannel.put(it) }
+        return this
     }
 
-    public String toString() {
-        return "${readPtr}, channel: ${channel}"
+    public IoBus reset() {
+        writeChannel.clear()
+        readChannel.clear()
+        return this
     }
 }

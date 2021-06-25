@@ -1,4 +1,5 @@
 import groovy.transform.Field;
+import java.util.concurrent.*;
 
 //DAY 2 tests
 assert 3500 == Intcode.from("1,9,10,3,2,3,11,0,99,30,40,50").call().load(0)
@@ -56,6 +57,78 @@ assert 999 == Intcode.from(d5long, new IoBus().write(7)).call().bus.read();
 assert 1000 == Intcode.from(d5long, new IoBus().write(8)).call().bus.read();
 assert 1001 == Intcode.from(d5long, new IoBus().write(9)).call().bus.read();
 
-assert 13547311 == Intcode.from(new File("data/05"), new IoBus().write(1)).call().bus.last();
-assert 236453 == Intcode.from(new File("data/05"), new IoBus().write(5)).call().bus.last();
+assert 13547311 == Intcode.from(new File("data/05"), new IoBus().write(1)).call().bus.lastWrite();
+assert 236453 == Intcode.from(new File("data/05"), new IoBus().write(5)).call().bus.lastWrite();
 
+//day 7
+
+def d7ex1Code = "3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0"
+def d7ex2Code = "3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0"
+def d7ex3Code = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0"
+
+def phase1AmpsInit = { code ->
+    def queues = (0..5).collect { new LinkedBlockingQueue<>() }
+    def ios = (1..5).collect { i -> new IoBus(queues[i-1], queues[i]) }
+    def amps = (0..<5).collect { i -> Intcode.from(code, ios[i]) }
+    return amps
+}
+
+def executePhase1 = { amps, List<Integer> phases ->
+    amps.each {
+        it.reset();
+        it.bus.reset() }
+    amps.eachWithIndex { amp, i ->
+        if(i == 0) amp.bus.seedRead(phases[i], 0)
+        else amp.bus.seedRead(phases[i])
+    }
+
+    amps.each { it.call(); }
+    return amps[4].bus.lastWrite()
+}
+
+assert 43210 == executePhase1(phase1AmpsInit(d7ex1Code), [4,3,2,1,0])
+assert 54321 == executePhase1(phase1AmpsInit(d7ex2Code), [0,1,2,3,4])
+assert 65210 == executePhase1(phase1AmpsInit(d7ex3Code), [1,0,4,3,2])
+
+def day7 = { phases, amps, closure ->
+    def thruster = -1
+    
+    phases.eachPermutation { phase ->
+        def tmp = closure.call(amps, phase)
+        thruster = Math.max(thruster, tmp)
+    }
+
+    return thruster
+}
+
+assert 359142 == day7([0,1,2,3,4], phase1AmpsInit(new File("data/07")), executePhase1)
+
+def phase2AmpsInit = { code ->
+    def queues = (0..<5).collect { new LinkedBlockingQueue<>() }
+    def ios = (0..<5).collect { i -> new IoBus(queues[i-1], queues[i]) }
+    def amps = (0..<5).collect { i -> Intcode.from(code, ios[i]) }
+    return amps
+}
+
+def executePhase2 = { amps, List<Integer> phases ->
+    amps.each {
+        it.reset();
+        it.bus.reset() }
+    amps.eachWithIndex { amp, i ->
+        if(i == 0) amp.bus.seedRead(phases[i], 0)
+        else amp.bus.seedRead(phases[i])
+    }
+
+    def threads = amps.collect { amp -> Thread.start { amp.call() } }
+    threads.each { it.join() }
+    return amps[4].bus.lastWrite()
+}
+
+assert 139629729 == executePhase2(phase2AmpsInit("3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26," +
+                                                 "27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"), [9,8,7,6,5])
+
+assert 18216 == executePhase2(phase2AmpsInit("3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54," +
+                                             "-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4," +
+                                             "53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10"), [9,7,8,5,6])
+
+assert 4374895 == day7([5,6,7,8,9], phase2AmpsInit(new File("data/07")), executePhase2)
