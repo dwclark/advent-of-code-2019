@@ -152,6 +152,3 @@ assert [204L] == Intcode.from("109,1,109,9,204,-6,99").call().bus.writes
 assert [204L] == Intcode.from("109,1,209,-1,204,-106,99").call().bus.writes
 assert [77L] == Intcode.from("109,1,3,3,204,2,99", new IoBus().write(77L)).call().bus.writes
 assert [107L] == Intcode.from("109,1,203,2,204,2,99", new IoBus().write(107L)).call().bus.writes
-
-
-println Intcode.from(new File("data/09"), new IoBus().write(1L)).call().bus.writes
