@@ -1,72 +1,150 @@
-import groovy.transform.Immutable
 import groovy.transform.ToString
+import groovy.transform.CompileStatic
 import static java.lang.Math.abs
 
-@Immutable
+Position parsePosition(String line) {
+    def re = /<x=(-*[0-9]+), y=(-*[0-9]+), z=(-*[0-9]+)>/
+    def m = line =~ re
+    return new Position(m[0][1].toInteger(), m[0][2].toInteger(), m[0][3].toInteger())
+}
+
+@CompileStatic
 class Position {
     int x, y, z
 
-    static Position from(String line) {
-        def re = /<x=(-*[0-9]+), y=(-*[0-9]+), z=(-*[0-9]+)>/
-        def m = line =~ re
-        return new Position(m[0][1].toInteger(), m[0][2].toInteger(), m[0][3].toInteger())
+    Position(int x, int y, int z) { this.x = x; this.y = y; this.z = z }
+    
+    void add(Velocity v) {
+        x += v.x
+        y += v.y
+        z += v.z
     }
     
-    Position plus(Velocity v) {
-        return new Position(x + v.x, y + v.y, z + v.z)
-    }
+    int energy() { return abs(x) + abs(y) + abs(z) }
 
-    public int energy() { abs(x) + abs(y) + abs(z) }
+    Position copy() { return new Position(x, y, z) }
 }
 
-@Immutable
+@CompileStatic
 class Velocity {
     int x, y, z
+
+    Velocity(int x, int y, int z) { this.x = x; this.y = y; this.z = z }
 
     int changeBy(int me, int them) {
         if(me < them) return 1
         else if(me > them) return -1
         else return 0
     }
-
-    Velocity add(Position me, List<Position> others) {
-        int newX = x
-        int newY = y
-        int newZ = z
-
-        for(Position pos in others) {
-            newX += changeBy(me.x, pos.x)
-            newY += changeBy(me.y, pos.y)
-            newZ += changeBy(me.z, pos.z)
-        }
-
-        return new Velocity(newX, newY, newZ)
+    
+    void add(Position me, Position other) {
+        x += changeBy(me.x, other.x)
+        y += changeBy(me.y, other.y)
+        z += changeBy(me.z, other.z)
     }
 
-    public int energy() { abs(x) + abs(y) + abs(z) }
+    int energy() { abs(x) + abs(y) + abs(z) }
+
+    Velocity copy() { new Velocity(x, y, z) }
 }
 
-@ToString
+@ToString @CompileStatic
 class Moon {
-    final int id
-    final Position position
-    final Velocity velocity
-
+    int id
+    Position position
+    Velocity velocity
+    
     public Moon(int i, Position p, Velocity v) { id = i; position = p; velocity = v; }
 
-    static Moon from(int id, String line) {
-        return new Moon(id, Position.from(line), new Velocity(0,0,0))
+    public void nextVelocities(List<Moon> moons) {
+        for(int i = 0; i < moons.size(); ++i) {
+            Moon m = moons.get(i);
+            if(m.id != id) {
+                velocity.add(position, m.position)
+            }
+        }
     }
 
-    Moon plus(List<Moon> moons) {
-        Velocity newVelocity = velocity.add(position, moons.findAll { m -> m != this }.collect { it.position })
-        return new Moon(id, position + newVelocity, newVelocity)
+    public void nextPosition() {
+        position.add(velocity)
     }
 
+    public Moon copy() {
+        return new Moon(id, position.copy(), velocity.copy())
+    }
+    
     int energy() { position.energy() * velocity.energy() }
+}
 
-    @Override boolean equals(Object o) { return id == o.id }
-    @Override int hashCode() { return id }
+@CompileStatic
+class DimensionStates {
+    int[] xstates = new int[8]
+    int[] ystates = new int[8]
+    int[] zstates = new int[8]
+    int[] test = new int[8]
+    List<Moon> moons
+    BigInteger xperiod = 0G, yperiod = 0G, zperiod = 0G
+
+    boolean getPeriodSolved() { return xperiod != 0 && yperiod != 0 && zperiod != 0 }
+    
+    int[] fillX(int[] ary) {
+        for(int i = 0; i < moons.size(); ++i) {
+            ary[2 * i] = moons[i].position.x
+            ary[2*i + 1] = moons[i].velocity.x
+        }
+
+        return ary
+    }
+
+    int[] fillY(int[] ary) {
+        for(int i = 0; i < moons.size(); ++i) {
+            ary[2 * i] = moons[i].position.y
+            ary[2*i + 1] = moons[i].velocity.y
+        }
+
+        return ary
+    }
+
+    int[] fillZ(int[] ary) {
+        for(int i = 0; i < moons.size(); ++i) {
+            ary[2 * i] = moons[i].position.z
+            ary[2*i + 1] = moons[i].velocity.z
+        }
+
+        return ary
+    }
+    
+    DimensionStates(List<Moon> moons) {
+        this.moons = moons
+        fillX(xstates)
+        fillY(ystates)
+        fillZ(zstates)
+    }
+
+    BigInteger lcm() {
+        BigInteger s1 = ((xperiod * yperiod) / xperiod.gcd(yperiod)).toBigInteger()
+        return ((s1 * zperiod) / s1.gcd(zperiod)).toBigInteger()
+    }
+    
+    BigInteger repeatsEvery() {
+        long steps = 0
+        while(!periodSolved) {
+            for(Moon m in moons) m.nextVelocities(moons)
+            for(Moon m in moons) m.nextPosition()
+            ++steps
+            
+            if(xperiod == 0G && Arrays.equals(xstates, fillX(test)))
+                xperiod = steps
+
+            if(yperiod == 0G && Arrays.equals(ystates, fillY(test)))
+                yperiod = steps
+
+            if(zperiod == 0G && Arrays.equals(zstates, fillZ(test)))
+                zperiod = steps
+        }
+
+        return lcm()
+    }
 }
 
 int totalEnergy(List<Moon> moons) {
@@ -74,13 +152,16 @@ int totalEnergy(List<Moon> moons) {
 }
 
 int idx = 1
-List<Moon> initial = new File("data/12").readLines().collect { Moon.from(idx++, it) }.asImmutable()
-List<Moon> current = new ArrayList(initial)
+List<Moon> initial = new File("data/12").readLines().collect { new Moon(idx++, parsePosition(it), new Velocity(0,0,0)) }.asImmutable()
+List<Moon> current = initial.collect { m -> m.copy() }
 
 1000.times {
-    current = current.collect { m -> m + current }
+    for(Moon m in current)
+        m.nextVelocities(current)
+
+    for(Moon m in current)
+        m.nextPosition()
 }
 
-println "1: ${totalEnergy(current)}"
-
-
+def states = new DimensionStates(initial.collect { m -> m.copy() })
+println "1: ${totalEnergy(current)}, 2: ${states.repeatsEvery()}"
