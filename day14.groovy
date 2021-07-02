@@ -24,10 +24,6 @@ class Warehouse {
     Map<String,Integer> stock = [:]
     Warehouse(List<Reaction> reactions) { this.reactions = reactions.asImmutable() }
 
-    boolean inStock(String name, Integer quantity) {
-        return stock.get(name, 0) >= quantity
-    }
-
     void produce(String name, Integer quantity) {
         Reaction r = reactions.find { it.produces == name; }
         if(r.ore) {
@@ -52,6 +48,5 @@ class Warehouse {
 }
 
 def wareHouse = new Warehouse(new File("data/14").readLines().collect { new Reaction(it) })
-if(!wareHouse.inStock("FUEL", 1))
-    wareHouse.produce("FUEL", 1)
+wareHouse.produce("FUEL", 1)
 println "1: ${wareHouse.oreCost}"
