@@ -1,103 +1,57 @@
 import groovy.transform.Immutable
 import groovy.transform.Field
 
-@Immutable
-class Ingredient {
-    int quantity
-    String name
-
-    @Override
-    String toString() { "($quantity,$name)" }
-    
-    Ingredient plus(Ingredient rhs) {
-        if(!canCombine(rhs))
-            throw new IllegalArgumentException()
-        return new Ingredient(quantity + rhs.quantity, name)
-    }
-
-    Ingredient multiply(Integer num) {
-        return new Ingredient(num * quantity, name)
-    }
-
-    boolean canCombine(Ingredient rhs) {
-        return name == rhs.name
-    }
-
-    Integer multiplier(Reaction r) {
-        if(r.production.quantity >= quantity) return 1
-        else if(quantity % r.production.quantity != 0) return 1 + ((int) (quantity / r.production.quantity))
-        else return (int) (quantity / r.production.quantity)
-    }
-
-    List<Ingredient> substitute(Reaction r) {
-        if(!canCombine(r.production)) return [ this ]
-        else return r.precursors.collect { it * multiplier(r) }
-    }
-
-    static List<Ingredient> combineAll(List<Ingredient> ingredients) {
-        def names = ingredients.collect { it.name } as Set
-        names.inject([]) { list, name ->
-            list << ingredients.findAll { it.name == name }.sum() }
-    }
-    
-    static Ingredient from(String s) {
-        def ary = s.split(' ')
-        return new Ingredient(ary[0] as int, ary[1])
-    }
-}
-
-@Immutable
 class Reaction {
-    List<Ingredient> precursors
-    Ingredient production
-
-    Reaction substitute(Reaction other) {
-        List<Ingredient> tmp = precursors.inject([]) { list, ing -> list + ing.substitute(other) }
-        new Reaction(Ingredient.combineAll(tmp), production);
-    }
-
-    boolean isOreReaction() { precursors.size() == 1 && precursors[0].name == 'ORE' }
-
-    Reaction findSubstitution(List<Reaction> reactions, boolean oreReaction) {
-        for(Ingredient ing in precursors) {
-            Reaction r = reactions.find { r -> r.production.name == ing.name && oreReaction == r.oreReaction }
-            if(r) return r
-        }
-
-        return null
+    private String _name(String raw) { raw.split(' ')[1] }
+    private Integer _quantity(String raw) { raw.split(' ')[0].toInteger() }
+    
+    Reaction(String line) {
+        def tmp = line.replace('=>', ',').split(', ')
+        inputs = tmp[0..<(tmp.size()-1)].inject([:]) { map, raw -> map << new MapEntry(_name(raw), _quantity(raw)) }.asImmutable()
+        produces = _name(tmp[-1])
+        quantity = _quantity(tmp[-1])
     }
     
-    Reaction intermediate(List<Reaction> reactions) {
-        Reaction tmp = this
-        Reaction sub = null
-        println tmp
-        while((sub = tmp.findSubstitution(reactions, false)) != null) {
-            tmp = tmp.substitute(sub)
-            println tmp
-        }
-
-        return tmp
-    }
-
-    Reaction finalReaction(List<Reaction> reactions) {
-        Reaction tmp = this
-        Reaction sub = null
-        while((sub = tmp.findSubstitution(reactions, true)) != null) {
-            tmp = tmp.substitute(sub)
-        }
-
-        return tmp
-    }
-    
-    static Reaction from(String line) {
-        def tmp = line.replace('=>', ',').split(', ').collect { Ingredient.from(it) }
-        return new Reaction(tmp[0..<(tmp.size()-1)], tmp[-1])
-    }    
+    final Map<String,Integer> inputs
+    final Integer quantity
+    final String produces
+    boolean isOre() { inputs.containsKey('ORE') }
 }
 
-def reactions = new File("data/14").readLines().collect { Reaction.from(it) }
-def fuel = reactions.find { r -> r.production.name == 'FUEL' }
-def i = fuel.intermediate(reactions)
-println i
-def f = i.finalReaction(reactions)
-println f
+class Warehouse {
+    List<Reaction> reactions
+    long oreCost
+    Map<String,Integer> stock = [:]
+    Warehouse(List<Reaction> reactions) { this.reactions = reactions.asImmutable() }
+
+    boolean inStock(String name, Integer quantity) {
+        return stock.get(name, 0) >= quantity
+    }
+
+    void produce(String name, Integer quantity) {
+        Reaction r = reactions.find { it.produces == name; }
+        if(r.ore) {
+            while(stock.get(name, 0) < quantity) {
+                oreCost += r.inputs['ORE']
+                stock[r.produces] = stock[r.produces] + r.quantity
+            }
+        }
+        else {
+            while(stock.get(name, 0) < quantity) {
+                r.inputs.each { inputName, inputQuantity ->
+                    while(stock.get(inputName, 0) < inputQuantity)
+                        produce(inputName, inputQuantity);
+                    assert stock[inputName] >= inputQuantity
+                    stock[inputName] = stock[inputName] - inputQuantity
+                }
+
+                stock[r.produces] = stock.get(r.produces, 0) + r.quantity;
+            }
+        }
+    }
+}
+
+def wareHouse = new Warehouse(new File("data/14").readLines().collect { new Reaction(it) })
+if(!wareHouse.inStock("FUEL", 1))
+    wareHouse.produce("FUEL", 1)
+println "1: ${wareHouse.oreCost}"
