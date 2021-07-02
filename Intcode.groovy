@@ -170,8 +170,11 @@ class Intcode {
             
             return this
         }
+        catch(InterruptedException ie) {
+            //swallow, signal to stop
+        }
         catch(Exception e) {
-            println memory
+            e.printStackTrace()
             throw e
         }
     }
