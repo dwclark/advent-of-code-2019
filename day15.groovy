@@ -98,7 +98,7 @@ class DiscoveringDfsWalk extends Graph.DfsWalk<Position> {
     }
 }
 
-def part1() {
+def discover() {
     def origin = new Position(0,0)
     def ioBus = IoBus.separateChannels()
     def intCode = Intcode.from(new File("data/15"), ioBus)
@@ -120,8 +120,11 @@ def part1() {
     controlThread.join()
     robotThread.join()
 
-    def sp = graph.dijkstra(origin)
-    return sp.pathTo(walk.oxygen).size() - 1
+    return [ origin: origin, graph: graph, oxygen: walk.oxygen ]
 }
 
-println "1: ${part1()}"
+def out = discover()
+def sp = out.graph.dijkstra(out.origin)
+def o2sp = out.graph.dijkstra(out.oxygen)
+def longestShortest = out.graph.nodes.keySet().collect { n -> o2sp.pathTo(n).size() - 1 }.max()
+println "1: ${sp.pathTo(out.oxygen).size() - 1}, 2: ${longestShortest}"
