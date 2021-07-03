@@ -1,45 +1,65 @@
-import groovy.transform.Field
+import groovy.transform.CompileStatic
 
-@Field List<Integer> base = [ 0, 1, 0, -1 ]
-
-List<Integer> multiplier(Integer position, Integer needed) {
-    int count = 0;
-    List<Integer> ret = new ArrayList(needed)
-    while(count <= needed) { //one extra for skipping the first element
-        for(int i = 0; (i < position && count <= needed); ++i)
-            ret[count++] = base[0]
-        
-        for(int i = 0; (i < position && count <= needed); ++i)
-            ret[count++] = base[1]
-
-        for(int i = 0; (i < position && count <= needed); ++i)
-            ret[count++] = base[2]
-        
-        for(int i = 0; (i < position && count <= needed); ++i)
-            ret[count++] = base[3]
+@CompileStatic
+class Fft {
+    int[] base = [ 0, 1, 0, -1 ]
+    int[] input
+    int[] multiplier
+    
+    Fft(String str) {
+        input = str.collect { Character.digit(it as char, 10) } as int[]
+        multiplier = new int[input.length]
     }
 
-    return ret
-}
-
-List<Integer> phase(List<Integer> input) {
-    List<Integer> ret = new ArrayList(input.size())
-    for(int position = 0; position < input.size(); ++position) {
-        Integer accum = 0
-        List<Integer> mult = multiplier(position+1, input.size())
-        for(int multPos = 1; multPos < mult.size(); ++multPos) {
-            accum += (mult[multPos] * input[multPos-1])
+    void populateMultiplier(int position) {
+        int count = -1;
+        int needed = multiplier.length
+        while(count < needed) {
+            for(int i = 0; (i < position && count < needed); ++i) {
+                if(count >= 0) multiplier[count++] = base[0]
+                else count++;
+            }
+            
+            for(int i = 0; (i < position && count < needed); ++i)
+                multiplier[count++] = base[1]
+            
+            for(int i = 0; (i < position && count < needed); ++i)
+                multiplier[count++] = base[2]
+            
+            for(int i = 0; (i < position && count < needed); ++i)
+                multiplier[count++] = base[3]
+        }
+    }
+    
+    String part1() {
+        100.times {
+            for(int position = 0; position < input.size(); ++position) {
+                int accum = 0
+                populateMultiplier(position+1)
+                for(int multPos = 0; multPos < multiplier.length; ++multPos)
+                    accum += (multiplier[multPos] * input[multPos])
+                
+                input[position] = Math.abs(accum) % 10
+            }
         }
 
-        ret[position] = Math.abs(accum) % 10
+        return input[0..<8].join('')
     }
 
-    return ret;
+    String part2() {
+        int skip = input[0..<7].join('').toInteger();
+        100.times {
+            int accum = 0;
+            for(int i = input.length-1; i >= skip; --i) {
+                accum += input[i]
+                input[i] = accum % 10
+            }
+        }
+
+        return input[skip..<(skip+8)].join('')
+    }
 }
 
-def input = new File("data/16").text.trim().collect { Character.digit(it as char, 10) }
-for(int i = 0; i < 100; ++i)
-    input = phase(input)
-
-println "1: ${input[0..<8].join()}"
-
+Fft fft1 = new Fft(new File("data/16").text.trim())
+Fft fft2 = new Fft(new File("data/16").text.trim() * 10_000)
+println "1: ${fft1.part1()} 2: ${fft2.part2()}"
