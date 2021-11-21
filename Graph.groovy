@@ -39,6 +39,10 @@ class Graph<T> {
         }
     }
 
+    public boolean hasNode(final T n) {
+        return nodes.containsKey(n)
+    }
+
     public void addEdge(final T u, final T v, final int weight) {
         Edge<T> edge = new Edge<>(v, weight);
         Set<Edge<T>> set = nodes[u];
@@ -358,7 +362,6 @@ class Graph<T> {
 
         paths.distances[source] = 0;
         paths.predecessors[source] = source;
-        int max = 10;
 
         T u = paths.next(set);
         while(u != null) {
