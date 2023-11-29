@@ -1,23 +1,21 @@
-import groovy.transform.Field;
+import static Aoc.*
 
-@Field def vm = Intcode.from(new File("data/02"))
-
-public part1() {
+def part1(Intcode vm) {
     vm.store(1, 12).store(2, 2).call().load(0);
 }
 
-public part2() {
-    def found = 0;
-    for(int noun = 0; noun <= 99; ++noun) {
-        for(int verb = 0; verb <= 99; ++verb) {
-            def output = vm.reset().store(1, noun).store(2, verb).call().load(0);
-            if(output == 19690720) {
-                return (100 * noun + verb)
+def part2(Intcode vm) {
+    for(int noun in (0..99)) {
+        for(int verb in (0..99)) {
+            if(19690720 == vm.reset().store(1, noun).store(2, verb).call().load(0)) {
+               return (100 * noun + verb)
             }
         }
     }
 }
 
-println "1: ${part1()}, 2: ${part2()}"
+def vm = Intcode.from(new File("data/02"))
+printAssert("Part 1:", part1(vm), 3409710,
+	    "Part 2:", part2(vm), 7912)
 
 
