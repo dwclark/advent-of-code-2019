@@ -1,74 +1,63 @@
-import groovy.transform.ToString
-import java.awt.Point
-import java.awt.geom.Line2D
+import static Aoc.*
+import static Math.*
+import groovy.transform.Immutable
 
-@ToString
-class Segment {
-    int by
-    Point start, end
+@Immutable
+class Point {
+    static Point ORIGIN = new Point(0,0)
+    int x, y
+    int manhattan(Point rhs) { abs(x - rhs.x) + abs(y - rhs.y) }
+}
 
-    private Point populateEnd(String dir) {
-        if(dir == "R") return new Point(start.@x + by, start.@y)
-        else if(dir == "L") return new Point(start.@x - by, start.@y)
-        else if(dir == "U") return new Point(start.@x, start.@y + by)
-        else if(dir == "D") return new Point(start.@x, start.@y - by)
+@Immutable
+class Line {
+    static Line ZERO = new Line(0,0,0,0)
+    int x1, y1, x2, y2
+    
+    boolean getVertical() { x1 == x2 }
+    boolean getHorizontal() { y1 == y2 }
+    int getLength() { abs(x2-x1) + abs(y2-y1) }
+
+    boolean intersects(Point p) {
+	((horizontal && p.y == y1 && between(x1, p.x, x2)) ||
+	 (vertical && p.x == x1 && between(y1, p.y, y2)))
+    }
+
+    boolean between(int v1, int test, int v2) {
+	(min(v1,v2) <= test) && (test <= max(v1,v2))
     }
     
-    Segment(Point start, String str) {
-        this.by = str.substring(1).toInteger()
-        this.start = start
-        this.end = populateEnd(str.substring(0, 1));
+    Point intersection(Line rhs) {
+	Line h = horizontal ? this : (rhs.horizontal ? rhs : null)
+	Line v = vertical ? this : (rhs.vertical ? rhs : null)
+	if(h && v && between(h.x1, v.x1, h.x2) && between(v.y1, h.y1, v.y2)) new Point(v.x1, h.y1)
+	else null
     }
-
-    boolean isHorizontal() { start.@y == end.@y }
-    boolean isVertical() { start.@x == end.@x }
     
-    Point intersection(Segment o) {
-        if(new Line2D.Double(start, end).intersectsLine(new Line2D.Double(o.start, o.end))) {
-            Segment h = horizontal ? this : o
-            Segment v = vertical ? this : o
-            return new Point(v.start.@x, h.start.@y)
-        }
-        else return null
+    Line plus(String s) {
+	int mag = s[1..<s.length()].toInteger()
+	String dir = s[0]
+	int newX = x2 + (dir == 'R' ? mag : (dir == 'L' ? -mag : 0))
+	int newY = y2 + (dir == 'U' ? mag : (dir == 'D' ? -mag : 0))
+	new Line(x2, y2, newX, newY)
     }
 }
 
-class Wire {
-    Wire(String str) {
-        str.split(',').each { val -> add(val) }
-    }
-    
-    List<Segment> segments = []
-    Point getPrev() { return segments.empty ? new Point(0,0) : segments[-1].end }
-    void add(String str) { segments << new Segment(prev, str) }
-
-    int distance(int upTo, Point p) {
-        int ret = 0
-        for(int i = 0; i < upTo; ++i) ret += segments[i].by
-        Segment last = segments[upTo]
-        if(last.horizontal) ret += Math.abs(p.@x - last.start.@x)
-        else ret += Math.abs(p.@y - last.start.@y)
-        return ret
+int distance(List<Line> wire, Point p) {
+    int soFar = 0
+    for(line in wire) {
+	if(line.intersects(p))
+	    return soFar += new Point(line.x1, line.y1).manhattan(p)
+	else
+	    soFar += line.length
     }
 }
 
-def manhattan = { Point p -> return Math.abs(p.@x) + Math.abs(p.@y) }
-List<String> lines = new File("data/03").readLines();
-Wire w1 = new Wire(lines[0])
-Wire w2 = new Wire(lines[1])
-int manhattanLeast = Integer.MAX_VALUE
-int signalDistance = Integer.MAX_VALUE
-
-for(int outer = 1; outer < w2.segments.size(); ++outer) {
-    Segment sOuter = w2.segments[outer]
-    for(int inner = 1; inner < w1.segments.size(); ++inner) {
-        Segment sInner = w1.segments[inner]
-        Point p = sOuter.intersection(sInner);
-        if(p) {
-            manhattanLeast = Math.min(manhattan(p), manhattanLeast)
-            signalDistance = Math.min(signalDistance, w2.distance(outer, p) + w1.distance(inner, p))
-        }
-    }
+List<Point> intersections(List<Line> wire1, List<Line> wire2) {
+    [wire1,wire2].combinations().collect { lst -> lst[0].intersection(lst[1]) }.findAll { p -> p && p != Point.ORIGIN }
 }
 
-println "1: ${manhattanLeast} 2: ${signalDistance}"
+(wire1, wire2) = lines("data/03") { str -> str.split(',').inject([]) { ret, s -> ret << ((ret ? ret[-1] : Line.ZERO) + s) } }
+points = intersections(wire1, wire2)
+printAssert("Part 1:", points.collect { Point.ORIGIN.manhattan(it) }.min(), 209,
+	    "Part 2:", points.collect { p -> distance(wire1, p) + distance(wire2, p) }.min(), 43258)

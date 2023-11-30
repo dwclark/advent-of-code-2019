@@ -11,7 +11,11 @@ class Aoc {
 	println toPrint.trim()
     }
 
-    static List<String> lines(String path, Closure transform = { -> it }) {
+    static List<String> lines(String path) {
+	new File(path).readLines()
+    }
+    
+    static List<String> lines(String path, Closure transform) {
 	new File(path).readLines().collect(transform)
     }
 
