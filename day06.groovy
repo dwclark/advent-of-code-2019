@@ -1,39 +1,48 @@
-import groovy.transform.Field
+import static Aoc.*
 
-@Field def orbits = [:];
-@Field def reversed = [:]
-@Field def visited = [] as Set
-
-new File("data/06").splitEachLine(/\)/) { list -> orbits[list[1]] = list[0]; reversed[list[0]] = reversed.get(list[0], []) + [list[1]]  }
-                                         
-int countHops(String key) { key == "COM" ? 0 : 1 + countHops(orbits[key]) }
-
-int countOrbits() { orbits.keySet().sum { countHops(it) } }
-
-int backwardHops(String key, int soFar) {
-    if(visited.contains(key)) return 0
-
-    visited.add(key)
-    if(key == orbits["SAN"]) return soFar
-
-    if(!reversed.containsKey(key)) return 0
-
-    for(body in reversed[key]) {
-        hops = backwardHops(body, soFar+1)
-        if(hops != 0) return hops
+Map makeOrbits(List lines) {
+    lines.inject([:]) { map, line ->
+	(first, second) = line.split('\\)')
+	map.get(first, []) << second
+	map
     }
-
-    return 0
 }
 
-int forwardHops(String key, int soFar) {
-    if(key == orbits["SAN"]) return soFar
-
-    int hops = backwardHops(key, 0)
-    if(hops != 0) return hops + soFar
-    else return forwardHops(orbits[key], soFar + 1)
+Map makeBackwards(Map orbits) {
+    orbits.inject([:]) { map, k, list ->
+	list.each { v -> map[v] = k }
+	map
+    }
 }
 
-println "1: ${countOrbits()} 2: ${forwardHops(orbits['YOU'], 0)}"
+Map makePaths(Map orbits, Map backwards) {
+    def copy = orbits.collectEntries { k, list -> new MapEntry(k, new ArrayList(list)) }
+    backwards.inject(copy) { m, k, v ->
+	if(m[k]) m[k].add(v)
+	else m[k] = [v]
+	m
+    }
+}
 
-                   
+int findPathLength(Map paths) {
+    BestCost bc = new BestCost(Heap.min())
+    bc.add('YOU', 0)
+    String n = null
+    while((n = bc.next()) != null) {
+	if(n == 'SAN') {
+	    return bc.cost(n) - 2
+	}
+	else {
+	    paths[n].each { p -> bc.add(p, bc.cost(n) + 1) }
+	}
+    }
+}
+
+orbits = makeOrbits(lines("data/06"))
+backwards = makeBackwards(orbits)
+paths = makePaths(orbits, backwards)
+int countHops(String key) { key == "COM" ? 0 : 1 + countHops(backwards[key]) }
+int countOrbits() { backwards.keySet().sum { countHops(it) } }
+
+printAssert("Part 1:", countOrbits(), 147807,
+	    "Part 2:", findPathLength(paths), 229)

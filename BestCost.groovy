@@ -10,6 +10,10 @@ class BestCost<D,C extends Comparable<C>> {
 	return heap.next()
     }
 
+    C cost(D d) {
+	return soFar[d].value
+    }
+
     void add(D d, C c) {
 	final Map.Entry<D,C> entry = soFar[d]
 	if(!entry) {
