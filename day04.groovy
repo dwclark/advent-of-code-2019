@@ -1,36 +1,11 @@
-boolean sameAdjacent(String str) {
-    for(int i = 1; i < str.length(); ++i) {
-        if(str[i-1] == str[i])
-            return true
-    }
+import static Aoc.*
 
-    return false
-}
+def input = (272091..815432)
+def adj = { s -> (0..<(s.length()-1)).any { i -> s[i] == s[i+1] } }
+def asc = { s -> (0..<(s.length()-1)).every { i -> s[i].toInteger() <= s[i+1].toInteger() } }
+def group2 = { s -> s.toList().groupBy { it }.find { k,v -> v.size() == 2 } }
+def part1 = { s -> adj(s) && asc(s) }
+def part2 = { s -> part1(s) && group2(s) }
 
-boolean ascending(String str) {
-    for(int i = 1; i < str.length(); ++i) {
-        if(str[i-1].toInteger() > str[i].toInteger())
-            return false
-    }
-
-    return true;
-}
-
-boolean hasA2Group(String str) {
-    def groups = [:]
-    for(c in str) groups[c] = groups.get(c, 0) + 1
-    return groups.find { k,v -> v == 2 }
-}
-
-def p1matches = [], p2match = 0
-
-(272091..815432).each { num ->
-    String str = num.toString()
-    if(sameAdjacent(str) && ascending(str))
-        p1matches.add(str)
-}
-
-
-p1matches.each { if(hasA2Group(it)) p2match++ }
-
-println "1: ${p1matches.size()}, 2: $p2match"
+printAssert("Part 1:", input.count { n -> part1(n.toString()) }, 931,
+	    "Part 2:", input.count { n -> part2(n.toString()) }, 609)
