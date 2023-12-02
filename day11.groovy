@@ -1,12 +1,10 @@
+import static Aoc.*
 import groovy.transform.Immutable
 
 enum Color {
     BLACK(0), WHITE(1);
-
     Color(int val) { this.val = val }
-
     static Color from(int input) { return input == 0 ? BLACK : WHITE }
-    
     final int val;
 }
 
@@ -70,7 +68,7 @@ Map<Point,Color> colorHull(Color initial) {
     return grid
 }
 
-println "1: ${colorHull(Color.BLACK).size()}"
+printAssert("Part 1:", colorHull(Color.BLACK).size(), 1909)
 
 Map<Point,Color> p2Hull = colorHull(Color.WHITE)
 int left = p2Hull.keySet().min { p1, p2 -> p1.x <=> p2.x }.x
