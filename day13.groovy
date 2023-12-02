@@ -1,3 +1,4 @@
+import static Aoc.*
 import groovy.transform.Immutable
 
 enum Tile {
@@ -126,6 +127,5 @@ int part2(boolean show = false) {
     return score
 }
 
-def p1 = part1()
-def p2 = part2()
-println "1: ${p1} 2: ${p2}"
+printAssert("Part 1:", part1(), 326, "Part 2:", part2(), 15988)
+

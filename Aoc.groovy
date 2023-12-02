@@ -21,7 +21,7 @@ class Aoc {
 
     static void main(String[] args) {
 	def shell = new GroovyShell()
-	(1..6).each { n ->
+	(1..13).each { n ->
 	    String name = "day${n.toString().padLeft(2, '0')}.groovy"
 	    print "[Day ${n}] "
 	    shell.evaluate(new File(name))

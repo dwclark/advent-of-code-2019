@@ -1,3 +1,4 @@
+import static Aoc.*
 import groovy.transform.ToString
 import groovy.transform.CompileStatic
 import static java.lang.Math.abs
@@ -119,4 +120,4 @@ List<Moon> current = initial.collect { m -> m.copy() }
 
 1000.times { Moon.runStep(current) }
 def states = new DimensionStates(initial.collect { m -> m.copy() })
-println "1: ${Moon.totalEnergy(current)}, 2: ${states.repeatsEvery()}"
+printAssert("Part 1:", Moon.totalEnergy(current), 13045, "Part 2:", states.repeatsEvery(), 344724687853944G)
