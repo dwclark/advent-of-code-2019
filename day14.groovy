@@ -1,3 +1,5 @@
+import static Aoc.*
+
 class Reaction {
     private String _name(String raw) { raw.split(' ')[1] }
     private Long _quantity(String raw) { raw.split(' ')[0].toLong() }
@@ -74,5 +76,5 @@ long binarySearchOreCost(List<Reaction> reactions, long lbound, long ubound, lon
 }
 
 def reactions = new File("data/14").readLines().collect { new Reaction(it) }
-println "1: ${new Warehouse(reactions).produce('FUEL', 1).oreCost}"
-println "2: ${binarySearchOreCost(reactions, 0L, 1000000000000L, 1000000000000L)}"
+printAssert("Part 1:", new Warehouse(reactions).produce('FUEL', 1).oreCost, 870051,
+	    "Part 2:", binarySearchOreCost(reactions, 0L, 1000000000000L, 1000000000000L), 1863741)
