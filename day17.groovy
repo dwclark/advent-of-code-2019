@@ -1,3 +1,4 @@
+import static Aoc.*
 import groovy.transform.Immutable
 
 enum Facing {
@@ -56,8 +57,6 @@ def sumAlignment = grid.keySet().sum { p ->
     else return 0
 }
 
-println "1: ${sumAlignment}"
-
 List<String> singleStream(Map<Position, Element> grid) {
     List<Character> ret = []
     Position position = grid.find { k,v -> v != Element.SCAFFOLD && v != Element.EMPTY }.key
@@ -107,5 +106,6 @@ longAscii.each { ioBus2.readChannel.put(it) }
 def intCode2 = Intcode.from(new File("data/17"), ioBus2)
 intCode2.store(0L, 2L)
 intCode2.call()
-println "2: ${ioBus2.lastWrite()}"
+
+printAssert("Part 1:", sumAlignment, 6680, "Part 2:", ioBus2.lastWrite(), 1103905)
 

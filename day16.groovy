@@ -1,4 +1,5 @@
 import groovy.transform.CompileStatic
+import static Aoc.*
 
 @CompileStatic
 class Fft {
@@ -62,4 +63,4 @@ class Fft {
 
 Fft fft1 = new Fft(new File("data/16").text.trim())
 Fft fft2 = new Fft(new File("data/16").text.trim() * 10_000)
-println "1: ${fft1.part1()} 2: ${fft2.part2()}"
+printAssert("Part 1:", fft1.part1(), '17978331', "Part 2:", fft2.part2(), '19422575')
