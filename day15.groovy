@@ -1,6 +1,5 @@
 import static Aoc.*
 import groovy.transform.Immutable
-import groovy.transform.ToString
 
 enum Content {
     WALL(0L), FREE(1L), OXYGEN(2L);
@@ -32,7 +31,6 @@ enum Direction {
     }
 }
 
-@ToString
 class Tries {
     final Position position
     final Direction direction
