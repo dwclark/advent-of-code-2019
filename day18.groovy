@@ -41,6 +41,17 @@ import groovy.transform.Immutable
     }
 }
 
+@Immutable class StateP2 {
+    List<Point> points
+    String keys
+
+    StateP2 walk(int index, Point next, String key) {
+	List<Point> tmp = new ArrayList<>(points);
+	tmp[index] = next
+	return new StateP2(tmp, Maze.addKey(keys, key))
+    }
+}
+
 class Maze {
     static final Set KEYS = ('a'..'z').toSet()
     static final Set DOORS = ('A'..'Z').toSet()
@@ -138,18 +149,26 @@ class Maze {
 	return Integer.MAX_VALUE
     }
 
-    //part 2 should be similar to part 1, but state will contain all keys
+    int part2() {
+	BestCost bc = new BestCost(Heap.min())
+	StateP2 current = new StateP2(points: starts, keys: "@")
+	bc.add(current, 0)
+	while((current = bc.next()) != null) {
+	    int cost = bc.cost(current)
+	    if(solved(current.keys)) {
+		return cost
+	    }
+
+	    for(int i = 0; i < current.points.size(); ++i) {
+		Point anchor = current.points[i]
+		List<Path> neighbors = paths[anchor].findAll { it.need(current.keys) && it.canWalkTo(current.keys) }
+		for(Path neighbor : neighbors) {
+		    bc.add(current.walk(i, neighbor.end, neighbor.endId), cost + neighbor.distance)
+		}
+	    }
+	}
+    }
 }
 
-//def m = new Maze(lines("data/18a"))
-assert new Maze(lines("data/18a")).part1() == 8
-assert new Maze(lines("data/18b")).part1() == 86
-assert new Maze(lines("data/18c")).part1() == 132
-assert new Maze(lines("data/18d")).part1() == 136
-assert new Maze(lines("data/18e")).part1() == 81
-printAssert("Part 1:", new Maze(lines("data/18")).part1(), 5068)
-
-//assert new Maze(lines("data/18pb_a")).solve() == 24
-//assert new Maze(lines("data/18pb_b")).solve() == 32
-//assert new Maze(lines("data/18pb_c")).solve() == 72
-//println new Maze(lines("data/18pb")).solve()
+printAssert("Part 1:", new Maze(lines("data/18")).part1(), 5068,
+	    "Part 2:", new Maze(lines("data/18pb")).part2(), 1966)
