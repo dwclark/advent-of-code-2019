@@ -55,11 +55,16 @@ class Heap<D,C extends Comparable<C>> {
     }
 
     public D next() {
+	Map.Entry<D,C> n = nextWithCost();
+	return (n == null) ? null : n.key
+    }
+
+    public Map.Entry<D,C> nextWithCost() {
 	if(heap.size() == 0) {
 	    return null
 	}
 	
-	D ret = heap[0].d
+	Data ret = heap[0]
 	_swap(0, heap.size()-1)
 	heap.remove(heap.size()-1)
 

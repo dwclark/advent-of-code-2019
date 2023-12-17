@@ -20,6 +20,7 @@ class Maze {
     final Map<String,Point> mazeKeys = [:]
     final Map<String,Point> mazeDoors = [:]
     final Map<Point,String> graph = [:]
+    final Map<Set<Point>,String> paths = [:]
     final List<Point> starts
 
     private boolean shouldAdd(String s) {
@@ -44,6 +45,36 @@ class Maze {
     private String addKey(final String prev, final String latest) {
 	return ((prev + latest) as List).sort().join()
     }
+
+    List<Map.Entry<Point,Integer>> bfsNext(final Point start, final String keys) {
+	List<Map.Entry<Point,Integer>> ret = []
+	Set<Point> visited = new HashSet<>()
+	Heap heap = Heap.min()
+	visited.add(start)
+	heap.insert(start, 0)
+	Map.Entry<Point,Integer> entry = null
+
+	while((entry = heap.nextWithCost()) != null) {
+	    Point p = entry.getKey()
+	    visited.add(p)
+	    Integer cost = entry.getValue()
+	    String content = graph[p]
+	    if(content in KEYS && !keys.contains(content)) {
+		ret.add(entry)
+	    }
+	    
+	    p.neighbors().each { nextPoint ->
+		String nextContent = graph[nextPoint]
+		if(!visited.contains(nextPoint) &&
+		   (nextContent == FREE || nextContent == START || nextContent in KEYS ||
+		    (nextContent in DOORS && keys.contains(nextContent.toLowerCase())))) {
+		    heap.insert(nextPoint, cost + 1)
+		}
+	    }
+	}
+
+	return ret
+    }
     
     int solve() {
 	BestCost bc = new BestCost(Heap.min())
@@ -66,23 +97,21 @@ class Maze {
 	    }
 
 	    points.eachWithIndex { Point at, int index ->
-		at.neighbors().each { n ->
-		    String nextContent = graph[n]
-		    if(nextContent == FREE || nextContent == START || nextContent in KEYS ||
-		       (nextContent in DOORS && keys.contains(nextContent.toLowerCase()))) {
-			List copy = new ArrayList(points)
-			copy[index] = n
-			bc.add([copy, keys], cost + 1)
-		    } } }
+		bfsNext(at, keys).each { Map.Entry<Point,Integer> entry ->
+		    List<Point> nextPoints = new ArrayList<>(points)
+		    nextPoints[index] = entry.getKey()
+		    bc.add([nextPoints, keys], cost + entry.getValue())
+		}
+	    }
 	}
     }
 }
 
-//assert new Maze(lines("data/18a")).solve() == 8
-//assert new Maze(lines("data/18b")).solve() == 86
-//assert new Maze(lines("data/18c")).solve() == 132
-//assert new Maze(lines("data/18d")).solve() == 136
-//assert new Maze(lines("data/18e")).solve() == 81
+/*assert new Maze(lines("data/18a")).solve() == 8
+assert new Maze(lines("data/18b")).solve() == 86
+assert new Maze(lines("data/18c")).solve() == 132
+assert new Maze(lines("data/18d")).solve() == 136
+assert new Maze(lines("data/18e")).solve() == 81*/
 printAssert("Part 1:", new Maze(lines("data/18")).solve(), 5068)
 
 //assert new Maze(lines("data/18pb_a")).solve() == 24
