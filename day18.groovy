@@ -32,23 +32,14 @@ import groovy.transform.Immutable
     boolean canWalkTo(String keys) { doors.every { d -> keys.contains(d.toLowerCase()) } }
 }
 
-@Immutable class StateP1 {
-    Point point
-    String keys
-
-    StateP1 walk(Point next, String key) {
-	return new StateP1(next, Maze.addKey(keys, key))
-    }
-}
-
-@Immutable class StateP2 {
+@Immutable class State {
     List<Point> points
     String keys
 
-    StateP2 walk(int index, Point next, String key) {
+    State walk(int index, Point next, String key) {
 	List<Point> tmp = new ArrayList<>(points);
 	tmp[index] = next
-	return new StateP2(tmp, Maze.addKey(keys, key))
+	return new State(tmp, Maze.addKey(keys, key))
     }
 }
 
@@ -130,28 +121,9 @@ class Maze {
 	mazeKeys.keySet().every { k -> keys.indexOf(k) != -1 }
     }
     
-    int part1() {
+    int solve() {
 	BestCost bc = new BestCost(Heap.min())
-	StateP1 current = new StateP1(point: starts[0], keys: "@")
-	bc.add(current, 0)
-	while((current = bc.next()) != null) {
-	    int cost = bc.cost(current)
-	    if(solved(current.keys)) {
-		return cost
-	    }
-
-	    List<Path> neighbors = paths[current.point].findAll { it.need(current.keys) && it.canWalkTo(current.keys) }
-	    for(Path neighbor : neighbors) {
-		bc.add(current.walk(neighbor.end, neighbor.endId), cost + neighbor.distance)
-	    }
-	}
-
-	return Integer.MAX_VALUE
-    }
-
-    int part2() {
-	BestCost bc = new BestCost(Heap.min())
-	StateP2 current = new StateP2(points: starts, keys: "@")
+	State current = new State(points: starts, keys: "@")
 	bc.add(current, 0)
 	while((current = bc.next()) != null) {
 	    int cost = bc.cost(current)
@@ -170,5 +142,5 @@ class Maze {
     }
 }
 
-printAssert("Part 1:", new Maze(lines("data/18")).part1(), 5068,
-	    "Part 2:", new Maze(lines("data/18pb")).part2(), 1966)
+printAssert("Part 1:", new Maze(lines("data/18")).solve(), 5068,
+	    "Part 2:", new Maze(lines("data/18pb")).solve(), 1966)
