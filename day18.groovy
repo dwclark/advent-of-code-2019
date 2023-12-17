@@ -10,6 +10,37 @@ import groovy.transform.Immutable
     }
 }
 
+@Immutable class Cost implements Comparable<Cost> {
+    int distance
+    String doors
+
+    static Cost init() { return new Cost(0, "", "") }
+    int compareTo(Cost rhs) { return distance <=> rhs.distance }
+    Cost increment() { return new Cost(distance + 1, doors) }
+    Cost increment(String door) { return new Cost(distance + 1, Maze.addKey(doors, door)) }
+}
+
+@Immutable class Path {
+    String startId
+    Point start
+    String endId
+    Point end
+    String doors
+    int distance
+
+    boolean need(String keys) { !keys.contains(endId) }
+    boolean canWalkTo(String keys) { doors.every { d -> keys.contains(d.toLowerCase()) } }
+}
+
+@Immutable class StateP1 {
+    Point point
+    String keys
+
+    StateP1 walk(Point next, String key) {
+	return new StateP1(next, Maze.addKey(keys, key))
+    }
+}
+
 class Maze {
     static final Set KEYS = ('a'..'z').toSet()
     static final Set DOORS = ('A'..'Z').toSet()
@@ -20,7 +51,7 @@ class Maze {
     final Map<String,Point> mazeKeys = [:]
     final Map<String,Point> mazeDoors = [:]
     final Map<Point,String> graph = [:]
-    final Map<Set<Point>,String> paths = [:]
+    final Map<Point,List<Path>> paths = [:]
     final List<Point> starts
 
     private boolean shouldAdd(String s) {
@@ -40,79 +71,83 @@ class Maze {
 	mazeDoors = tmpDoors.asImmutable()
 	graph = tmpGraph.asImmutable()
 	starts = tmpStarts.asImmutable()
+	paths = allShortestPaths([starts, mazeKeys.values()].flatten())
     }
-
-    private String addKey(final String prev, final String latest) {
+    
+    public static String addKey(final String prev, final String latest) {
 	return ((prev + latest) as List).sort().join()
     }
-
-    List<Map.Entry<Point,Integer>> bfsNext(final Point start, final String keys) {
-	List<Map.Entry<Point,Integer>> ret = []
+    
+    Map<Point,List<Path>> allShortestPaths(List<Point> points) {
+	points.inject([:]) { map, point -> map + [ (point): shortestPaths(point) ] }
+    }
+    
+    List<Path> shortestPaths(final Point start) {
+	List<Path> ret = []
 	Set<Point> visited = new HashSet<>()
 	Heap heap = Heap.min()
 	visited.add(start)
-	heap.insert(start, 0)
-	Map.Entry<Point,Integer> entry = null
-
+	heap.insert(start, new Cost(0, ""))
+	Map.Entry<Point,Cost> entry = null
 	while((entry = heap.nextWithCost()) != null) {
-	    Point p = entry.getKey()
+	    Point p = entry.key
 	    visited.add(p)
-	    Integer cost = entry.getValue()
+	    Cost cost = entry.value
 	    String content = graph[p]
-	    if(content in KEYS && !keys.contains(content)) {
-		ret.add(entry)
+	    
+	    if(content in KEYS && p != start) {
+		ret.add(new Path(startId: graph[start], start: start,
+				 endId: content, end: p,
+				 doors: cost.doors, distance: cost.distance))
 	    }
 	    
 	    p.neighbors().each { nextPoint ->
-		String nextContent = graph[nextPoint]
-		if(!visited.contains(nextPoint) &&
-		   (nextContent == FREE || nextContent == START || nextContent in KEYS ||
-		    (nextContent in DOORS && keys.contains(nextContent.toLowerCase())))) {
-		    heap.insert(nextPoint, cost + 1)
+		if(!visited.contains(nextPoint) && graph[nextPoint] != null && graph[nextPoint] != WALL) {
+		    String nextContent = graph[nextPoint]
+		    if(nextContent in DOORS)
+			heap.insert(nextPoint, cost.increment(nextContent))
+		    else
+			heap.insert(nextPoint, cost.increment())
 		}
 	    }
 	}
 
 	return ret
     }
+
+    boolean solved(String keys) {
+	mazeKeys.keySet().every { k -> keys.indexOf(k) != -1 }
+    }
     
-    int solve() {
+    int part1() {
 	BestCost bc = new BestCost(Heap.min())
-	bc.add([starts, ""], 0)
-	List current = null
+	StateP1 current = new StateP1(point: starts[0], keys: "@")
+	bc.add(current, 0)
 	while((current = bc.next()) != null) {
 	    int cost = bc.cost(current)
-	    List<Point> points = current[0]
-	    String keys = current[1]
-
-	    for(Point at : points) {
-		String content = graph[at]
-		if(content in KEYS && !keys.contains(content)) {
-		    keys = addKey(keys, content)
-		    
-		    if(keys.size() == mazeKeys.size()) {
-			return cost;
-		    }
-		}
+	    if(solved(current.keys)) {
+		return cost
 	    }
 
-	    points.eachWithIndex { Point at, int index ->
-		bfsNext(at, keys).each { Map.Entry<Point,Integer> entry ->
-		    List<Point> nextPoints = new ArrayList<>(points)
-		    nextPoints[index] = entry.getKey()
-		    bc.add([nextPoints, keys], cost + entry.getValue())
-		}
+	    List<Path> neighbors = paths[current.point].findAll { it.need(current.keys) && it.canWalkTo(current.keys) }
+	    for(Path neighbor : neighbors) {
+		bc.add(current.walk(neighbor.end, neighbor.endId), cost + neighbor.distance)
 	    }
 	}
+
+	return Integer.MAX_VALUE
     }
+
+    //part 2 should be similar to part 1, but state will contain all keys
 }
 
-/*assert new Maze(lines("data/18a")).solve() == 8
-assert new Maze(lines("data/18b")).solve() == 86
-assert new Maze(lines("data/18c")).solve() == 132
-assert new Maze(lines("data/18d")).solve() == 136
-assert new Maze(lines("data/18e")).solve() == 81*/
-printAssert("Part 1:", new Maze(lines("data/18")).solve(), 5068)
+//def m = new Maze(lines("data/18a"))
+assert new Maze(lines("data/18a")).part1() == 8
+assert new Maze(lines("data/18b")).part1() == 86
+assert new Maze(lines("data/18c")).part1() == 132
+assert new Maze(lines("data/18d")).part1() == 136
+assert new Maze(lines("data/18e")).part1() == 81
+printAssert("Part 1:", new Maze(lines("data/18")).part1(), 5068)
 
 //assert new Maze(lines("data/18pb_a")).solve() == 24
 //assert new Maze(lines("data/18pb_b")).solve() == 32
