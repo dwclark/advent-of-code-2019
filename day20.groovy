@@ -112,10 +112,6 @@ class Maze {
     boolean isPath(String c) { return c == '.' }
     String toString() { lines.join('\n') }
 
-    Point warpTo(Point from) {
-	paths.findResult { Point to, Label label -> (to != from && label.same(paths[from])) ? to : null }
-    }
-    
     List nextVisits(Point p, Set visited, int soFar) {
 	List visits = []
 	['left','right','above','below'].each { f ->
