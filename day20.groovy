@@ -1,5 +1,4 @@
 import static Aoc.*
-import groovy.transform.Immutable
 import static java.lang.Character.isLetter
 
 enum Kind {
@@ -159,24 +158,16 @@ class Maze2 extends Maze {
 
     @Override
     Point warpFor(Point point) {
-	def warp
 	if(point.kind == Kind.INNER) {
-	    warp = points.keySet().find { Point p ->
+	    return points.keySet().find { Point p ->
 		p.label == point.label && p.kind == Kind.OUTER && p.level == (point.level + 1)
 	    }
 	}
 	else {
-	    warp = points.keySet().find { Point p ->
+	    return points.keySet().find { Point p ->
 		p.label == point.label && p.kind == Kind.INNER && p.level == (point.level - 1)
 	    }
 	}
-
-	if(!warp) {
-	    println "Could not find warp for ${point}"
-	    System.exit(0)
-	}
-
-	warp
     }
 
     static Map<Point,Point> keepIf(Map<Point,Point> map, int level, Closure closure) {
@@ -203,34 +194,7 @@ class Maze2 extends Maze {
     }
 }
 
-static testParse() {
-    def maze = new Maze(new File('data/20').readLines())
-    assert maze[new Point(63,2)].kind == Kind.START
-    assert maze[new Point(112,59)].kind == Kind.FINISH
+def lines = new File('data/20').readLines()
 
-    def test = { p, label, kind ->
-	Point found = maze[p]
-	assert found.label == label && found.kind == kind && found.kind.warp
-    }
-    
-    test(new Point(2,59), 'RN', Kind.OUTER)
-    test(new Point(28,57), 'BI', Kind.INNER)
-    test(new Point(43,2), 'DY', Kind.OUTER)
-    test(new Point(45,28), 'KS', Kind.INNER)
-    test(new Point(112,61), 'OW', Kind.OUTER)
-    test(new Point(86,67), 'ZU', Kind.INNER)
-    test(new Point(69,110), 'ND', Kind.OUTER)
-    test(new Point(51,84), 'ZV', Kind.INNER)
-}
-
-testParse()
-
-static part1(String path) {
-    new Maze(new File(path).readLines()).solve()
-}
-
-//println part1('data/20')
-
-def m2 = new Maze2(new File('data/20').readLines())
-println m2.solve()
-//m2.points.each { println it }
+printAssert("Part 1:", new Maze(lines).solve(), 448,
+	    "Part 2:", new Maze2(lines).solve(), 5678)
